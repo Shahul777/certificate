@@ -1,0 +1,122 @@
+<button id="checkout-button">Pay with Card</button>
+<script>
+  // Initialize Stripe.js
+  var stripe = Stripe('your_publishable_key_here'); // Replace with your Stripe publishable key
+
+  // Handle payment button click
+  var checkoutButton = document.getElementById('checkout-button');
+  checkoutButton.addEventListener('click', function() {
+    // Create a checkout session on the server and redirect the customer to Stripe Checkout
+    // Example:
+    // fetch('/create-checkout-session', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json'
+    //   }
+    // }).then(function(response) {
+    //   return response.json();
+    // }).then(function(session) {
+    //   return stripe.redirectToCheckout({ sessionId: session.id });
+    // }).then(function(result) {
+    //   // If `redirectToCheckout` fails, display an error message to the customer
+    // });
+  });
+</script>
+
+
+
+......
+import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.checkout.SessionCreateParams;
+
+public class CheckoutService {
+
+    private static final String STRIPE_SECRET_KEY = "your_stripe_secret_key_here"; // Replace with your Stripe secret key
+
+    public String createCheckoutSession() {
+        try {
+            // Set your Stripe secret key
+            Stripe.apiKey = STRIPE_SECRET_KEY;
+
+            // Create a Checkout Session
+            SessionCreateParams params = SessionCreateParams.builder()
+                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+                    .addLineItem(
+                            SessionCreateParams.LineItem.builder()
+                                    .setPriceData(
+                                            SessionCreateParams.LineItem.PriceData.builder()
+                                                    .setCurrency("usd")
+                                                    .setProductData(
+                                                            SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                    .setName("Product Name")
+                                                                    .build()
+                                                    )
+                                                    .setUnitAmount(1000) // Amount in cents (e.g., $10.00)
+                                                    .build()
+                                    )
+                                    .setQuantity(1)
+                                    .build()
+                    )
+                    .setMode(SessionCreateParams.Mode.PAYMENT)
+                    .setSuccessUrl("https://your_website.com/success")
+                    .setCancelUrl("https://your_website.com/cancel")
+                    .build();
+
+            Session session = Session.create(params);
+
+            return session.getId(); // Return the session ID to the client-side to redirect to Stripe Checkout
+        } catch (StripeException e) {
+            // Handle any exceptions that occurred during Checkout Session creation
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
+
+......
+
+
+UI
+// Handle payment button click
+var checkoutButton = document.getElementById('checkout-button');
+checkoutButton.addEventListener('click', function() {
+  // Make an API call to your server to create the Checkout Session
+  fetch('/create-checkout-session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(function(response) {
+    return response.json();
+  })
+  .then(function(data) {
+    // Use the Checkout Session ID to redirect the customer to Stripe Checkout
+    stripe.redirectToCheckout({ sessionId: data.sessionId })
+    .then(function(result) {
+      // If `redirectToCheckout` fails, display an error message to the customer
+    });
+  });
+});
+
+
+<!-- success.html -->
+<h1>Payment Successful!</h1>
+<p>Thank you for your purchase. Your payment was successful.</p>
+<p>Transaction ID: <span id="transaction-id"></span></p>
+
+<script>
+  // Extract the transaction ID from the URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const transactionId = urlParams.get('transaction_id');
+
+  // Display the transaction ID on the page
+  document.getElementById('transaction-id').textContent = transactionId;
+</script>
+
+
+
+
+
